@@ -293,7 +293,7 @@ export default class HTML5Backend {
           clientOffset,
           anchorPoint
         );
-        dataTransfer.setDragImage(dragPreview, dragPreviewOffset.x, dragPreviewOffset.y);
+        dataTransfer.setDragImage(dragPreview, dragPreviewOffset.x, dragPreviewOffset.y, e.target);
       }
 
       try {
