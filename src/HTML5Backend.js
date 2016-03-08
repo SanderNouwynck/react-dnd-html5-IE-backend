@@ -44,6 +44,75 @@ export default class HTML5Backend {
     }
     this.constructor.isSetUp = true;
     this.addEventListeners(window);
+
+    // IE fix for setDragImage
+    if ('function' !== typeof DataTransfer.prototype.setDragImage) {
+      DataTransfer.prototype.setDragImage = function(image, offsetX, offsetY, parentEl) {
+          var randomDraggingClassName,
+              dragStylesCSS,
+              dragStylesEl,
+              headEl;
+
+          // generate a random class name that will be added to the element
+          randomDraggingClassName = 'setdragimage-ie-dragging-' + Math.round(Math.random() * Math.pow(10, 5)) + '-' + Date.now();
+
+          // prepare the rules for the random class
+          dragStylesCSS = [
+              '.' + randomDraggingClassName,
+              '{',
+              'background: url("' + image.src + '") no-repeat #fff 0 0 !important;',
+              'width: ' + image.width + 'px !important;',
+              'height: ' + image.height + 'px !important;',
+              'text-indent: -9999px !important;',
+              'border: 0 !important;',
+              'outline: 0 !important;',
+              'display: block !important;',
+              '}',
+              '.' + randomDraggingClassName + ' * {',
+              'display: none !important;',
+              '}'
+          ];
+          // create the element and add it to the head of the page
+          dragStylesEl = document.createElement('style');
+          dragStylesEl.innerText = dragStylesCSS.join('');
+          headEl = document.getElementsByTagName('head')[0];
+          headEl.appendChild(dragStylesEl);
+
+          // then, we get the target element and add the class we prepared to it
+          parentEl.classList.add(randomDraggingClassName);
+
+          // immediately after adding the class, we remove it. in this way the browser will
+          // have time to make a snapshot and use it just so it looks like the drag element
+          setTimeout(function() {
+              // remove the styles
+              headEl.removeChild(dragStylesEl);
+              // remove the class
+              parentEl.classList.remove(randomDraggingClassName);
+          }, 0);
+      };
+
+      window.setDragImageIEPreload = function(image) {
+        var bodyEl,
+            preloadEl;
+
+        bodyEl = document.body;
+
+        // create the element that preloads the  image
+        preloadEl = document.createElement('div');
+        preloadEl.style.background = 'url("' + image.src + '")';
+        preloadEl.style.position = 'absolute';
+        preloadEl.style.opacity = 0.001;
+
+        bodyEl.appendChild(preloadEl);
+
+        // after it has been preloaded, just remove the element so it won't stay forever in the DOM
+        setTimeout(function() {
+            bodyEl.removeChild(preloadEl);
+        }, 5000);
+      };
+
+      console.log('added missing setDragImage to window');
+    }
   }
 
   teardown() {
@@ -85,6 +154,10 @@ export default class HTML5Backend {
   connectDragPreview(sourceId, node, options) {
     this.sourcePreviewNodeOptions[sourceId] = options;
     this.sourcePreviewNodes[sourceId] = node;
+
+    if (window.setDragImageIEPreload) {
+      window.setDragImageIEPreload(node);
+    }
 
     return () => {
       delete this.sourcePreviewNodes[sourceId];
